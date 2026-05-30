@@ -1,31 +1,51 @@
 <?php
 include "includes/config.php";
 
-if(isset($_POST['login'])){
-
-$email = $_POST['email'];
-$pass = $_POST['password'];
-
-$res = $conn->query("SELECT * FROM users WHERE email='$email'");
-$user = $res->fetch_assoc();
-
-if($user && password_verify($pass,$user['password'])){
-
-$_SESSION['user_id']=$user['id'];
-
-header("Location: dashboard.php");
-
+if (isset($_SESSION['user_id'])) {
+    header('Location: dashboard.php');
+    exit;
 }
+
+$email = '';
+
+if(isset($_POST['login'])){
+    $email = trim($_POST['email']);
+    $pass = $_POST['password'];
+
+    if ($email === '' || $pass === '') {
+        setFlash('error', 'Please enter both email and password.');
+    } else {
+        $stmt = $conn->prepare("SELECT id, password FROM users WHERE email = ?");
+        $stmt->bind_param('s', $email);
+        $stmt->execute();
+        $stmt->bind_result($userId, $hash);
+        $stmt->fetch();
+        $stmt->close();
+
+        if ($userId && password_verify($pass, $hash)) {
+            $_SESSION['user_id'] = $userId;
+            header('Location: dashboard.php');
+            exit;
+        }
+
+        setFlash('error', 'Invalid email or password.');
+    }
 }
 ?>
 
-<form method="POST">
+<?php include "includes/header.php"; ?>
 
-<h2>Login</h2>
+<div class="row justify-content-center mt-5">
+    <div class="col-md-4">
+        <div class="card shadow p-4">
+            <h2 class="text-center mb-4">Login</h2>
+            <form method="POST" novalidate>
+                <input class="form-control mb-3" name="email" placeholder="Email" value="<?= sanitize($email) ?>" required>
+                <input class="form-control mb-3" type="password" name="password" placeholder="Password" required>
+                <button class="btn btn-dark w-100" name="login">Login</button>
+            </form>
+        </div>
+    </div>
+</div>
 
-<input class="form-control mb-2" name="email">
-<input class="form-control mb-2" type="password" name="password">
-
-<button class="btn btn-dark" name="login">Login</button>
-
-</form>
+<?php include "includes/footer.php"; ?>
